@@ -237,12 +237,12 @@ function getAnswerPreview(value: string): string {
 }
 
 function buildQuizOptions(cards: Flashcard[], currentCard: Flashcard): string[] {
-  const distractors = cards
+  const distinctAnswers = cards
     .filter((card) => card.id !== currentCard.id)
     .map((card) => card.back)
-    .filter((answer, index, values) => values.indexOf(answer) === index)
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 3);
+    .filter((answer, index, values) => values.indexOf(answer) === index);
+
+  const distractors = distinctAnswers.sort(() => Math.random() - 0.5).slice(0, 3);
 
   return [currentCard.back, ...distractors].sort(() => Math.random() - 0.5);
 }
@@ -536,11 +536,11 @@ export function App() {
     setSelectedQuizAnswer("");
 
     if (currentCard) {
-      setQuizOptions(buildQuizOptions(studyCards, currentCard));
+      setQuizOptions(buildQuizOptions(activeCards, currentCard));
     } else {
       setQuizOptions([]);
     }
-  }, [currentCard, studyCards, studyMode]);
+  }, [activeCards, currentCard, studyMode]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -934,7 +934,11 @@ export function App() {
   }
 
   const canRateCurrentCard =
-    studyMode === "flash" ? isCardFlipped : studyMode === "write" ? writeReveal : Boolean(selectedQuizAnswer);
+    studyMode === "flash"
+      ? isCardFlipped
+      : studyMode === "write"
+        ? writeReveal
+        : quizOptions.length > 1 && Boolean(selectedQuizAnswer);
 
   return (
     <div className="app-shell">
@@ -1264,7 +1268,7 @@ export function App() {
                         </div>
                       ) : null}
                     </div>
-                  ) : (
+                  ) : quizOptions.length > 1 ? (
                     <div className="study-mode-panel">
                       <span className="flashcard-label">{currentCard.title || currentCard.category || "Quiz"}</span>
                       <h3>{currentCard.front}</h3>
@@ -1304,6 +1308,15 @@ export function App() {
                       ) : (
                         <p className="hint">Choose the best answer, then rate how it felt.</p>
                       )}
+                    </div>
+                  ) : (
+                    <div className="study-mode-panel">
+                      <span className="flashcard-label">{currentCard.title || currentCard.category || "Quiz"}</span>
+                      <h3>{currentCard.front}</h3>
+                      <div className="reference-card">
+                        <h3>Not enough answer choices yet</h3>
+                        <p>Add more cards with distinct answers, or use Flash or Write mode for this deck.</p>
+                      </div>
                     </div>
                   )}
 
