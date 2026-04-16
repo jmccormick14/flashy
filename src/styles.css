@@ -1,0 +1,403 @@
+:root {
+  color-scheme: light;
+  font-family: "Aptos", "Segoe UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  background:
+    radial-gradient(circle at top left, rgba(238, 174, 97, 0.35), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(26, 82, 118, 0.16), transparent 30%),
+    linear-gradient(180deg, #fbf4e7 0%, #eef4f8 100%);
+  color: #122033;
+  --panel: rgba(255, 255, 255, 0.84);
+  --panel-border: rgba(18, 32, 51, 0.1);
+  --shadow: 0 18px 44px rgba(18, 32, 51, 0.12);
+  --brand: #1d3557;
+  --accent: #d97706;
+  --success: #197d4d;
+  --danger: #b02a37;
+  --muted: #617186;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 320px;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar,
+.main-content {
+  padding: 24px;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: rgba(255, 251, 245, 0.78);
+  border-right: 1px solid rgba(18, 32, 51, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.brand-block h1,
+.topbar h2,
+.panel h2,
+.panel h3 {
+  margin: 0;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+}
+
+.lede,
+.hint,
+.field-label,
+.deck-button small,
+.card-notes {
+  color: var(--muted);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 22px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+.panel-header,
+.topbar,
+.button-row,
+.mode-switch,
+.pill-row,
+.study-footer,
+.summary-strip,
+.rating-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.deck-list,
+.mapping-grid,
+.button-stack,
+.editor-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.deck-button,
+.mode-switch button,
+.pill,
+.primary-button,
+.secondary-button,
+.success-button,
+.danger-button,
+.text-button {
+  border: 1px solid transparent;
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: #ffffff;
+  color: #122033;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.deck-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.deck-button.active,
+.mode-switch button.active,
+.pill.active {
+  background: var(--brand);
+  color: #fff;
+}
+
+.primary-button {
+  background: var(--brand);
+  color: #fff;
+}
+
+.secondary-button {
+  border-color: rgba(18, 32, 51, 0.12);
+}
+
+.success-button {
+  background: var(--success);
+  color: #fff;
+}
+
+.danger-button,
+.text-button {
+  background: rgba(176, 42, 55, 0.08);
+  color: var(--danger);
+}
+
+.field-label,
+.mapping-row {
+  display: grid;
+  gap: 8px;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  border: 1px solid rgba(18, 32, 51, 0.14);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.file-input {
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+}
+
+.card-select {
+  min-height: 360px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 18px;
+}
+
+.browse-layout {
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+}
+
+.hero-panel {
+  min-height: 560px;
+}
+
+.flashcard {
+  width: 100%;
+  min-height: 360px;
+  position: relative;
+  border: 0;
+  background: transparent;
+  perspective: 1200px;
+  padding: 0;
+}
+
+.flashcard-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  gap: 16px;
+  padding: 28px;
+  border-radius: 26px;
+  box-shadow: var(--shadow);
+  backface-visibility: hidden;
+  transition: transform 320ms ease;
+}
+
+.flashcard-front {
+  background: linear-gradient(145deg, #1d3557, #2a557f);
+  color: white;
+}
+
+.flashcard-back {
+  background: linear-gradient(145deg, #fff4d6, #f2dbc0);
+  transform: rotateY(180deg);
+}
+
+.flashcard.flipped .flashcard-front {
+  transform: rotateY(180deg);
+}
+
+.flashcard.flipped .flashcard-back {
+  transform: rotateY(360deg);
+}
+
+.flashcard-label {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.82;
+}
+
+.flashcard-rich-content {
+  display: grid;
+  gap: 10px;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  text-align: left;
+}
+
+.flashcard-rich-content p,
+.flashcard-rich-content ul,
+.flashcard-rich-content ol {
+  margin: 0;
+}
+
+.flashcard-rich-content ul,
+.flashcard-rich-content ol {
+  padding-left: 20px;
+}
+
+.card-notes {
+  margin: 0;
+  font-size: 0.94rem;
+}
+
+.rating-row {
+  justify-content: stretch;
+}
+
+.rating-row > button {
+  flex: 1;
+}
+
+.study-progress {
+  color: var(--muted);
+}
+
+.stats-panel {
+  align-self: start;
+}
+
+.stat-block {
+  display: grid;
+  gap: 4px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(18, 32, 51, 0.08);
+}
+
+.stat-block strong {
+  font-size: 2rem;
+}
+
+.reference-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.summary-strip {
+  margin-bottom: 16px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.summary-metric {
+  min-width: 160px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(29, 53, 87, 0.06);
+}
+
+.summary-metric strong {
+  display: block;
+  font-size: 1.2rem;
+}
+
+.reference-card {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(18, 32, 51, 0.1);
+}
+
+.reference-card p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.compact-actions {
+  justify-content: flex-end;
+}
+
+.empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  text-align: center;
+}
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  background: rgba(29, 53, 87, 0.95);
+  color: white;
+  padding: 14px 18px;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 1180px) {
+  .app-shell,
+  .content-grid,
+  .browse-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid rgba(18, 32, 51, 0.08);
+  }
+}
+
+@media (max-width: 720px) {
+  .sidebar,
+  .main-content {
+    padding: 16px;
+  }
+
+  .topbar,
+  .panel-header,
+  .study-footer,
+  .button-row,
+  .summary-strip,
+  .rating-row,
+  .pill-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
