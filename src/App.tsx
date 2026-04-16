@@ -27,6 +27,7 @@ const importOptions: ImportFieldKey[] = ["title", "front", "back", "category", "
 
 type ViewMode = "study" | "browse";
 type StudyFilter = "due" | "new" | "all" | "starred" | "hard";
+type StudyMode = "flash" | "write" | "quiz";
 
 type ManualDeckDraft = {
   name: string;
@@ -211,6 +212,41 @@ function getCardSearchText(card: Flashcard): string {
     .toLowerCase();
 }
 
+function normalizeAnswer(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getAnswerPreview(value: string): string {
+  const stripped = value
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (stripped.length <= 88) {
+    return stripped;
+  }
+
+  return `${stripped.slice(0, 85).trim()}...`;
+}
+
+function buildQuizOptions(cards: Flashcard[], currentCard: Flashcard): string[] {
+  const distractors = cards
+    .filter((card) => card.id !== currentCard.id)
+    .map((card) => card.back)
+    .filter((answer, index, values) => values.indexOf(answer) === index)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 3);
+
+  return [currentCard.back, ...distractors].sort(() => Math.random() - 0.5);
+}
+
 function getReviewOrder(cards: Flashcard[], progress: DeckProgress | null): Flashcard[] {
   const now = Date.now();
 
@@ -308,8 +344,13 @@ export function App() {
   const [progress, setProgress] = useState<DeckProgress | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("study");
   const [studyFilter, setStudyFilter] = useState<StudyFilter>("due");
+  const [studyMode, setStudyMode] = useState<StudyMode>("flash");
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isCardFlipped, setIsCardFlipped] = useState(false);
+  const [writeGuess, setWriteGuess] = useState("");
+  const [writeReveal, setWriteReveal] = useState(false);
+  const [quizOptions, setQuizOptions] = useState<string[]>([]);
+  const [selectedQuizAnswer, setSelectedQuizAnswer] = useState("");
   const [browseSearch, setBrowseSearch] = useState("");
   const [selectedCardId, setSelectedCardId] = useState("");
   const [toast, setToast] = useState("");
@@ -391,6 +432,13 @@ export function App() {
   const currentCard = studyCards[currentCardIndex] ?? null;
   const currentCardProgress = currentCard ? getCardProgress(progress, currentCard.id) : undefined;
   const currentCardBackHtml = currentCard ? sanitizeRichTextHtml(currentCard.back) : "";
+  const normalizedWriteGuess = normalizeAnswer(writeGuess);
+  const normalizedCurrentAnswer = normalizeAnswer(currentCard?.back ?? "");
+  const writeGuessLooksCorrect =
+    Boolean(normalizedWriteGuess) &&
+    Boolean(normalizedCurrentAnswer) &&
+    (normalizedCurrentAnswer.includes(normalizedWriteGuess) ||
+      normalizedWriteGuess.includes(normalizedCurrentAnswer));
 
   const browseCards = useMemo(() => {
     const search = deferredBrowseSearch.trim().toLowerCase();
@@ -440,6 +488,9 @@ export function App() {
       setProgress(storedProgress);
       setCurrentCardIndex(0);
       setIsCardFlipped(false);
+      setWriteGuess("");
+      setWriteReveal(false);
+      setSelectedQuizAnswer("");
       setSelectedCardId(activeDeck.cards[0]?.id ?? "");
       setIsEditingCard(false);
       setCardEditDraft(null);
@@ -479,6 +530,19 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    setIsCardFlipped(false);
+    setWriteGuess("");
+    setWriteReveal(false);
+    setSelectedQuizAnswer("");
+
+    if (currentCard) {
+      setQuizOptions(buildQuizOptions(studyCards, currentCard));
+    } else {
+      setQuizOptions([]);
+    }
+  }, [currentCard, studyCards, studyMode]);
+
+  useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.key === "/" && viewMode === "browse") {
         event.preventDefault();
@@ -490,7 +554,28 @@ export function App() {
         return;
       }
 
+      if (event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setStudyMode("flash");
+        return;
+      }
+
+      if (event.key.toLowerCase() === "w") {
+        event.preventDefault();
+        setStudyMode("write");
+        return;
+      }
+
+      if (event.key.toLowerCase() === "q") {
+        event.preventDefault();
+        setStudyMode("quiz");
+        return;
+      }
+
       if (event.key === " ") {
+        if (studyMode !== "flash") {
+          return;
+        }
         event.preventDefault();
         setIsCardFlipped((value) => !value);
         return;
@@ -498,19 +583,20 @@ export function App() {
 
       if (event.key === "ArrowLeft") {
         event.preventDefault();
-        setIsCardFlipped(false);
         setCurrentCardIndex((index) => Math.max(index - 1, 0));
         return;
       }
 
       if (event.key === "ArrowRight") {
         event.preventDefault();
-        setIsCardFlipped(false);
         setCurrentCardIndex((index) => Math.min(index + 1, Math.max(studyCards.length - 1, 0)));
         return;
       }
 
-      if (!isCardFlipped) {
+      const canRate =
+        studyMode === "flash" ? isCardFlipped : studyMode === "write" ? writeReveal : Boolean(selectedQuizAnswer);
+
+      if (!canRate) {
         return;
       }
 
@@ -531,7 +617,7 @@ export function App() {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [currentCard, isCardFlipped, studyCards.length, viewMode]);
+  }, [currentCard, isCardFlipped, selectedQuizAnswer, studyCards.length, studyMode, viewMode, writeReveal]);
 
   async function reloadDecks(nextDeckId?: string) {
     const storedDecks = await getDecks();
@@ -710,6 +796,9 @@ export function App() {
     await saveProgress(nextProgress);
 
     setIsCardFlipped(false);
+    setWriteGuess("");
+    setWriteReveal(false);
+    setSelectedQuizAnswer("");
     setCurrentCardIndex((index) => Math.min(index + 1, Math.max(studyCards.length - 1, 0)));
   }
 
@@ -843,6 +932,9 @@ export function App() {
     await reloadDecks();
     setToast("Deck deleted.");
   }
+
+  const canRateCurrentCard =
+    studyMode === "flash" ? isCardFlipped : studyMode === "write" ? writeReveal : Boolean(selectedQuizAnswer);
 
   return (
     <div className="app-shell">
@@ -1079,54 +1171,145 @@ export function App() {
         {viewMode === "study" ? (
           <section className="content-grid">
             <article className="panel hero-panel">
-              <div className="panel-header">
+              <div className="panel-header study-header">
                 <h2>Review Session</h2>
-                <div className="pill-row">
-                  <button className={studyFilter === "due" ? "pill active" : "pill"} onClick={() => setStudyFilter("due")}>
-                    Due
-                  </button>
-                  <button className={studyFilter === "new" ? "pill active" : "pill"} onClick={() => setStudyFilter("new")}>
-                    New
-                  </button>
-                  <button className={studyFilter === "hard" ? "pill active" : "pill"} onClick={() => setStudyFilter("hard")}>
-                    Weak
-                  </button>
-                  <button
-                    className={studyFilter === "starred" ? "pill active" : "pill"}
-                    onClick={() => setStudyFilter("starred")}
-                  >
-                    Starred
-                  </button>
-                  <button className={studyFilter === "all" ? "pill active" : "pill"} onClick={() => setStudyFilter("all")}>
-                    All
-                  </button>
+                <div className="study-toolbar">
+                  <div className="pill-row">
+                    <button className={studyFilter === "due" ? "pill active" : "pill"} onClick={() => setStudyFilter("due")}>
+                      Due
+                    </button>
+                    <button className={studyFilter === "new" ? "pill active" : "pill"} onClick={() => setStudyFilter("new")}>
+                      New
+                    </button>
+                    <button className={studyFilter === "hard" ? "pill active" : "pill"} onClick={() => setStudyFilter("hard")}>
+                      Weak
+                    </button>
+                    <button
+                      className={studyFilter === "starred" ? "pill active" : "pill"}
+                      onClick={() => setStudyFilter("starred")}
+                    >
+                      Starred
+                    </button>
+                    <button className={studyFilter === "all" ? "pill active" : "pill"} onClick={() => setStudyFilter("all")}>
+                      All
+                    </button>
+                  </div>
+                  <div className="pill-row">
+                    <button className={studyMode === "flash" ? "pill active" : "pill"} onClick={() => setStudyMode("flash")}>
+                      Flash
+                    </button>
+                    <button className={studyMode === "write" ? "pill active" : "pill"} onClick={() => setStudyMode("write")}>
+                      Write
+                    </button>
+                    <button className={studyMode === "quiz" ? "pill active" : "pill"} onClick={() => setStudyMode("quiz")}>
+                      Quiz
+                    </button>
+                  </div>
                 </div>
               </div>
 
               {currentCard ? (
                 <>
-                  <button
-                    className={`flashcard ${isCardFlipped ? "flipped" : ""}`}
-                    onClick={() => setIsCardFlipped((value) => !value)}
-                  >
-                    <div className="flashcard-face flashcard-front">
-                      <span className="flashcard-label">{currentCard.title || currentCard.category || "Flashcard"}</span>
+                  {studyMode === "flash" ? (
+                    <button
+                      className={`flashcard ${isCardFlipped ? "flipped" : ""}`}
+                      onClick={() => setIsCardFlipped((value) => !value)}
+                    >
+                      <div className="flashcard-face flashcard-front">
+                        <span className="flashcard-label">{currentCard.title || currentCard.category || "Flashcard"}</span>
+                        <h3>{currentCard.front}</h3>
+                        <p>Space flips the card. Keys 1-4 rate it after you reveal the answer.</p>
+                      </div>
+                      <div className="flashcard-face flashcard-back">
+                        <span className="flashcard-label">{currentCard.category ?? "Answer"}</span>
+                        <div
+                          className="flashcard-rich-content"
+                          dangerouslySetInnerHTML={{ __html: currentCardBackHtml }}
+                        />
+                        {currentCard.notes ? <p className="card-notes">Notes: {currentCard.notes}</p> : null}
+                      </div>
+                    </button>
+                  ) : studyMode === "write" ? (
+                    <div className="study-mode-panel">
+                      <span className="flashcard-label">{currentCard.title || currentCard.category || "Write"}</span>
                       <h3>{currentCard.front}</h3>
-                      <p>Space flips the card. Keys 1-4 rate it after you reveal the answer.</p>
+                      <label className="field-label">
+                        Your answer
+                        <textarea
+                          rows={6}
+                          value={writeGuess}
+                          onChange={(event) => setWriteGuess(event.target.value)}
+                          placeholder="Type your answer before revealing it"
+                        />
+                      </label>
+                      <div className="button-row">
+                        <button className="secondary-button" onClick={() => setWriteReveal(true)}>
+                          Reveal answer
+                        </button>
+                        <span className={`answer-check ${writeGuessLooksCorrect ? "match" : ""}`}>
+                          {writeGuess
+                            ? writeGuessLooksCorrect
+                              ? "Your answer is close."
+                              : "Check against the official answer."
+                            : "Type a guess first."}
+                        </span>
+                      </div>
+                      {writeReveal ? (
+                        <div className="reference-card">
+                          <h3>Official answer</h3>
+                          <div
+                            className="flashcard-rich-content"
+                            dangerouslySetInnerHTML={{ __html: currentCardBackHtml }}
+                          />
+                        </div>
+                      ) : null}
                     </div>
-                    <div className="flashcard-face flashcard-back">
-                      <span className="flashcard-label">{currentCard.category ?? "Answer"}</span>
-                      <div
-                        className="flashcard-rich-content"
-                        dangerouslySetInnerHTML={{ __html: currentCardBackHtml }}
-                      />
-                      {currentCard.notes ? <p className="card-notes">Notes: {currentCard.notes}</p> : null}
+                  ) : (
+                    <div className="study-mode-panel">
+                      <span className="flashcard-label">{currentCard.title || currentCard.category || "Quiz"}</span>
+                      <h3>{currentCard.front}</h3>
+                      <div className="quiz-option-grid">
+                        {quizOptions.map((option) => {
+                          const isCorrect = option === currentCard.back;
+                          const isChosen = selectedQuizAnswer === option;
+                          const className = [
+                            "quiz-option",
+                            isChosen ? "selected" : "",
+                            selectedQuizAnswer && isCorrect ? "correct" : "",
+                            selectedQuizAnswer && isChosen && !isCorrect ? "wrong" : ""
+                          ]
+                            .filter(Boolean)
+                            .join(" ");
+
+                          return (
+                            <button
+                              key={option}
+                              className={className}
+                              onClick={() => setSelectedQuizAnswer(option)}
+                              disabled={Boolean(selectedQuizAnswer)}
+                            >
+                              {getAnswerPreview(option)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {selectedQuizAnswer ? (
+                        <div className="reference-card">
+                          <h3>{selectedQuizAnswer === currentCard.back ? "Correct answer" : "Answer review"}</h3>
+                          <div
+                            className="flashcard-rich-content"
+                            dangerouslySetInnerHTML={{ __html: currentCardBackHtml }}
+                          />
+                        </div>
+                      ) : (
+                        <p className="hint">Choose the best answer, then rate how it felt.</p>
+                      )}
                     </div>
-                  </button>
+                  )}
 
                   <div className="study-footer">
                     <div className="study-progress">
-                      Card {studyCards.length === 0 ? 0 : currentCardIndex + 1} of {studyCards.length} · Next review{" "}
+                      Card {studyCards.length === 0 ? 0 : currentCardIndex + 1} of {studyCards.length} | Next review{" "}
                       {formatNextReview(currentCardProgress)}
                     </div>
                     <div className="button-row">
@@ -1138,21 +1321,13 @@ export function App() {
                       </button>
                       <button
                         className="secondary-button"
-                        onClick={() => {
-                          setIsCardFlipped(false);
-                          setCurrentCardIndex((index) => Math.max(index - 1, 0));
-                        }}
+                        onClick={() => setCurrentCardIndex((index) => Math.max(index - 1, 0))}
                       >
                         Previous
                       </button>
                       <button
                         className="secondary-button"
-                        onClick={() => {
-                          setIsCardFlipped(false);
-                          setCurrentCardIndex((index) =>
-                            Math.min(index + 1, Math.max(studyCards.length - 1, 0))
-                          );
-                        }}
+                        onClick={() => setCurrentCardIndex((index) => Math.min(index + 1, Math.max(studyCards.length - 1, 0)))}
                       >
                         Next
                       </button>
@@ -1160,16 +1335,16 @@ export function App() {
                   </div>
 
                   <div className="rating-row">
-                    <button className="danger-button" onClick={() => void reviewCard("again")} disabled={!isCardFlipped}>
+                    <button className="danger-button" onClick={() => void reviewCard("again")} disabled={!canRateCurrentCard}>
                       Again
                     </button>
-                    <button className="secondary-button" onClick={() => void reviewCard("hard")} disabled={!isCardFlipped}>
+                    <button className="secondary-button" onClick={() => void reviewCard("hard")} disabled={!canRateCurrentCard}>
                       Hard
                     </button>
-                    <button className="success-button" onClick={() => void reviewCard("good")} disabled={!isCardFlipped}>
+                    <button className="success-button" onClick={() => void reviewCard("good")} disabled={!canRateCurrentCard}>
                       Good
                     </button>
-                    <button className="primary-button" onClick={() => void reviewCard("easy")} disabled={!isCardFlipped}>
+                    <button className="primary-button" onClick={() => void reviewCard("easy")} disabled={!canRateCurrentCard}>
                       Easy
                     </button>
                   </div>
@@ -1214,8 +1389,7 @@ export function App() {
                 <span>Reviewed this session</span>
               </div>
               <p className="hint">
-                Modeled after the strongest parts of Anki, Quizlet, and Brainscape: due/new separation,
-                confidence buttons, keyboard study, and fast browser search.
+                Flashy now supports classic flip cards, written recall, and multiple-choice quiz mode with no daily limits.
               </p>
             </aside>
           </section>

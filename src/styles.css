@@ -115,6 +115,17 @@ button {
   gap: 12px;
 }
 
+.study-header {
+  align-items: flex-start;
+}
+
+.study-toolbar,
+.study-mode-panel,
+.quiz-option-grid {
+  display: grid;
+  gap: 12px;
+}
+
 .deck-list,
 .mapping-grid,
 .button-stack,
@@ -214,6 +225,12 @@ select {
   min-height: 560px;
 }
 
+.study-mode-panel {
+  align-content: start;
+  gap: 18px;
+  min-height: 360px;
+}
+
 .flashcard {
   width: 100%;
   min-height: 360px;
@@ -286,6 +303,15 @@ select {
   font-size: 0.94rem;
 }
 
+.answer-check {
+  align-self: center;
+  color: var(--muted);
+}
+
+.answer-check.match {
+  color: var(--success);
+}
+
 .rating-row {
   justify-content: stretch;
 }
@@ -347,6 +373,33 @@ select {
 .reference-card p {
   margin: 0;
   white-space: pre-wrap;
+}
+
+.quiz-option-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.quiz-option {
+  text-align: left;
+  border: 1px solid rgba(18, 32, 51, 0.12);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.quiz-option.selected {
+  border-color: var(--brand);
+}
+
+.quiz-option.correct {
+  background: rgba(25, 125, 77, 0.12);
+  border-color: rgba(25, 125, 77, 0.35);
+}
+
+.quiz-option.wrong {
+  background: rgba(176, 42, 55, 0.1);
+  border-color: rgba(176, 42, 55, 0.28);
 }
 
 .compact-actions {
